@@ -802,6 +802,14 @@ async def do_one_export(page, exp: Dict):
     df = add_full_name_columns(df)
     df = add_social_urls(df)
 
+    if "Country" in df.columns:
+        before = len(df)
+        df = df[
+            df["Country"].fillna("").str.strip().ne("")
+            & df["Country"].str.strip().str.lower().ne("united states")
+        ]
+        print(f"[info] Country filter: kept {len(df):,} of {before:,} rows (removed empty + United States)")
+
     try:
         overwrite_tab(df, tab)
         print(f"[info] wrote {len(df):,} rows to '{tab}'")
