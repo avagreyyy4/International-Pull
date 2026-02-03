@@ -798,17 +798,26 @@ async def do_one_export(page, exp: Dict):
         print(f"[info] No new rows for '{layout_text}' (skipped).")
         return
 
+    # Filter for international players BEFORE cleaning phone numbers (need the + prefix)
+    if "Country" in df.columns or "Mobile Phone" in df.columns:
+        before = len(df)
+        mask = pd.Series(True, index=df.index)
+
+        if "Country" in df.columns:
+            country_clean = df["Country"].fillna("").str.strip()
+            mask &= country_clean.ne("") & country_clean.str.lower().ne("united states")
+
+        if "Mobile Phone" in df.columns:
+            phone_clean = df["Mobile Phone"].fillna("").str.strip()
+            has_non_us_code = phone_clean.str.match(r"^\+(?!1\b)\d{1,2}")
+            mask |= has_non_us_code
+
+        df = df[mask]
+        print(f"[info] International filter: kept {len(df):,} of {before:,} rows")
+
     df = clean_mobile_numbers(df)
     df = add_full_name_columns(df)
     df = add_social_urls(df)
-
-    if "Country" in df.columns:
-        before = len(df)
-        df = df[
-            df["Country"].fillna("").str.strip().ne("")
-            & df["Country"].str.strip().str.lower().ne("united states")
-        ]
-        print(f"[info] Country filter: kept {len(df):,} of {before:,} rows (removed empty + United States)")
 
     try:
         overwrite_tab(df, tab)
